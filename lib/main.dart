@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'wifi_status_provider.dart';
-import 'esp_communication.dart';
+import 'wifi_status_provider.dart'; // Убедитесь, что путь правильный
+import 'esp_communication.dart'; // Убедитесь, что путь правильный
 
 void main() {
   runApp(const MyApp());
@@ -91,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
           bool isWifiOn = wifiProvider.isWifiConnected;
           return Column(
             children: [
-              // Кнопка "Найти ESP" на верху, появляется если Wi-Fi включён
+              // Кнопка "Найти ESP" на верху, появляется если Wi-Fi включён (подключён к сети)
               if (isWifiOn)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
