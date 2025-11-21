@@ -282,9 +282,6 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
     await service.sendNextEffectCommand(widget.device.ip);
 
     // Запрашиваем обновлённые настройки, так как эффект мог измениться
-    // и, возможно, другие параметры (хотя в протоколе неясно, обновляются ли они строго по {2,6})
-    // Для надёжности, можно обновить только те, которые точно могут измениться или просто обновить всё.
-    // Обновим всё.
     final updatedSettings = await service.fetchSettings(widget.device.ip);
     if (updatedSettings != null && mounted) {
       setState(() {
@@ -299,10 +296,10 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Настройки гирлянды ${widget.device.ip}')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      // Оборачиваем Column в SingleChildScrollView для прокрутки
+      child: SingleChildScrollView(
         child:
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -384,7 +381,7 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
                       label: '${_settings!.brightness}',
                       onChanged: (double newValue) {
                         final newIntValue = newValue.round();
-                        final clampedValue = newIntValue.clamp(1, 251) as int;
+                        final clampedValue = newIntValue.clamp(1, 251);
                         if (clampedValue != _settings!.brightness) {
                           _updateBrightness(clampedValue);
                         }
@@ -448,8 +445,10 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
                                   _settings!.timerActive
                                       ? (double newValue) {
                                         final newIntValue = newValue.round();
-                                        final clampedValue =
-                                            newIntValue.clamp(1, 240) as int;
+                                        final clampedValue = newIntValue.clamp(
+                                          1,
+                                          240,
+                                        );
                                         if (clampedValue !=
                                             _settings!.timerMinutes) {
                                           _updateTimerMinutes(clampedValue);
@@ -529,8 +528,7 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
                               onChanged: (double newValue) {
                                 final newIntValue = newValue.round();
                                 // Ограничиваем значение в диапазоне 1-10
-                                final clampedValue =
-                                    newIntValue.clamp(1, 10) as int;
+                                final clampedValue = newIntValue.clamp(1, 10);
                                 if (clampedValue != _settings!.period) {
                                   _updatePeriod(clampedValue);
                                 }
@@ -558,24 +556,6 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
                     style: TextStyle(color: Colors.red),
                   ),
                 ),
-      ),
-    );
-  }
-
-  Widget _buildSettingRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 1,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(flex: 1, child: Text(value)),
-        ],
       ),
     );
   }

@@ -5,7 +5,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 import '../models/garland_device.dart';
 import '../models/garland_settings.dart';
 import '../services/udp_service.dart';
-import 'garland_settings_screen.dart';
+import 'garland_tabs_screen.dart';
 
 class SubnetCheckScreen extends StatefulWidget {
   const SubnetCheckScreen({super.key});
@@ -229,30 +229,38 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                         trailing: Switch(
                           value: garland.settings?.power ?? false,
                           onChanged:
-                              garland.settings != null
+                              garland.settings !=
+                                      null // Убедимся, что настройки не null перед переключением
                                   ? (bool value) async {
                                     await _udpService.sendPowerCommand(
                                       garland.ip,
                                       value,
                                     );
-                                    // Обновляем только питание, остальные поля остаются прежними
-                                    final updatedSettings = GarlandSettings(
-                                      totalLeds: garland.settings!.totalLeds,
-                                      power: value,
-                                      brightness: garland.settings!.brightness,
-                                      autoChange: garland.settings!.autoChange,
-                                      randomChange:
-                                          garland.settings!.randomChange,
-                                      period: garland.settings!.period,
-                                      timerActive:
-                                          garland.settings!.timerActive,
-                                      timerMinutes:
-                                          garland.settings!.timerMinutes,
-                                    );
-                                    await _updateGarlandSettings(
-                                      garland.ip,
-                                      updatedSettings,
-                                    );
+                                    // Проверим, что garland.settings не null перед использованием !
+                                    if (garland.settings != null) {
+                                      final updatedSettings = GarlandSettings(
+                                        totalLeds:
+                                            garland
+                                                .settings!
+                                                .totalLeds, // Строка 269 (предположительно)
+                                        power: value,
+                                        brightness:
+                                            garland.settings!.brightness,
+                                        autoChange:
+                                            garland.settings!.autoChange,
+                                        randomChange:
+                                            garland.settings!.randomChange,
+                                        period: garland.settings!.period,
+                                        timerActive:
+                                            garland.settings!.timerActive,
+                                        timerMinutes:
+                                            garland.settings!.timerMinutes,
+                                      );
+                                      await _updateGarlandSettings(
+                                        garland.ip,
+                                        updatedSettings,
+                                      );
+                                    }
                                   }
                                   : null,
                         ),
@@ -260,10 +268,9 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder:
-                                  (context) => GarlandSettingsScreen(
+                                  (context) => GarlandTabsScreen(
                                     device: garland,
                                     onSettingsChanged: (newSettings) async {
-                                      // Передаём новую функцию
                                       await _updateGarlandSettings(
                                         garland.ip,
                                         newSettings,
