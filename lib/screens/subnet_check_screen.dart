@@ -1,6 +1,5 @@
 // lib/screens/subnet_check_screen.dart
 import 'dart:async';
-// import 'package:flutter/foundation.dart'; // Удалите эту строку
 import 'package:flutter/material.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../models/garland_device.dart';
@@ -31,7 +30,7 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
   void initState() {
     super.initState();
     _checkSubnetMask();
-    _loadSavedGarlands(); // Загружаем сохранённые гирлянды при запуске
+    _loadSavedGarlands();
   }
 
   Future<void> _loadSavedGarlands() async {
@@ -44,7 +43,6 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
   Future<void> _checkSubnetMask() async {
     setState(() {
       _isLoading = true;
-      // _foundGarlands.clear(); // Не очищаем при проверке подсети, чтобы сохранить загруженные
     });
 
     String wifiIP = 'N/A';
@@ -57,9 +55,7 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
 
       hasCorrectSubnet = wifiSubmask == "255.255.255.0";
     } catch (e) {
-      debugPrint(
-        'Ошибка при проверке маски подсети: $e',
-      ); // debugPrint всё ещё доступен
+      debugPrint('Ошибка при проверке маски подсети: $e');
       hasCorrectSubnet = false;
       wifiSubmask = 'Error';
       wifiIP = 'N/A';
@@ -76,25 +72,21 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
   Future<void> _startGarlandSearch() async {
     setState(() {
       _isSearching = true;
-      // _foundGarlands.clear(); // Не очищаем, а добавляем новые к существующим
     });
 
     try {
       final foundDevices = await _udpService.searchGarlands();
 
-      // Для каждой найденной гирлянды проверяем, есть ли она уже в списке
       for (final newDevice in foundDevices) {
         bool alreadyExists = _foundGarlands.any(
           (existingDevice) => existingDevice.ip == newDevice.ip,
         );
 
         if (!alreadyExists) {
-          // Если новая, запрашиваем настройки и добавляем в список
           final settings = await _udpService.fetchSettings(newDevice.ip);
           newDevice.settings = settings;
           _foundGarlands.add(newDevice);
         } else {
-          // Если уже есть, можно обновить настройки, если они пришли
           final existingIndex = _foundGarlands.indexWhere(
             (d) => d.ip == newDevice.ip,
           );
@@ -105,19 +97,35 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
         }
       }
 
-      // Сохраняем обновлённый список
       await _udpService.saveGarlands(_foundGarlands);
 
       setState(() {
         _isSearching = false;
       });
     } catch (e) {
-      debugPrint(
-        'Ошибка при поиске гирлянд: $e',
-      ); // debugPrint всё ещё доступен
+      debugPrint('Ошибка при поиске гирлянд: $e');
       setState(() {
         _isSearching = false;
       });
+    }
+  }
+
+  // === Универсальная функция для обновления настроек гирлянды в списке ===
+  Future<void> _updateGarlandSettings(
+    String ip,
+    GarlandSettings newSettings,
+  ) async {
+    final updatedList = List<GarlandDevice>.from(_foundGarlands);
+    final index = updatedList.indexWhere((d) => d.ip == ip);
+    if (index != -1) {
+      updatedList[index].settings = newSettings;
+
+      setState(() {
+        _foundGarlands = updatedList;
+      });
+
+      // Сохраняем обновлённый список
+      await _udpService.saveGarlands(_foundGarlands);
     }
   }
 
@@ -221,66 +229,29 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                         trailing: Switch(
                           value: garland.settings?.power ?? false,
                           onChanged:
-                              garland.settings !=
-                                      null // Проверка на null для безопасности
+                              garland.settings != null
                                   ? (bool value) async {
-                                    // 1. Оптимистично обновляем состояние в UI
-                                    final updatedList =
-                                        List<GarlandDevice>.from(
-                                          _foundGarlands,
-                                        );
-                                    final updatedIndex = updatedList.indexWhere(
-                                      (d) => d.ip == garland.ip,
-                                    );
-                                    if (updatedIndex != -1 &&
-                                        updatedList[updatedIndex].settings !=
-                                            null) {
-                                      updatedList[updatedIndex]
-                                          .settings = GarlandSettings(
-                                        totalLeds:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .totalLeds,
-                                        power: value,
-                                        brightness:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .brightness,
-                                        autoChange:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .autoChange,
-                                        randomChange:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .randomChange,
-                                        period:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .period,
-                                        timerActive:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .timerActive,
-                                        timerMinutes:
-                                            updatedList[updatedIndex]
-                                                .settings!
-                                                .timerMinutes,
-                                      );
-                                      setState(() {
-                                        _foundGarlands = updatedList;
-                                      });
-                                    }
-
-                                    // 2. Отправляем команду на устройство
                                     await _udpService.sendPowerCommand(
                                       garland.ip,
                                       value,
                                     );
-
-                                    // 3. Сохраняем обновлённый список после переключения
-                                    await _udpService.saveGarlands(
-                                      _foundGarlands,
+                                    // Обновляем только питание, остальные поля остаются прежними
+                                    final updatedSettings = GarlandSettings(
+                                      totalLeds: garland.settings!.totalLeds,
+                                      power: value,
+                                      brightness: garland.settings!.brightness,
+                                      autoChange: garland.settings!.autoChange,
+                                      randomChange:
+                                          garland.settings!.randomChange,
+                                      period: garland.settings!.period,
+                                      timerActive:
+                                          garland.settings!.timerActive,
+                                      timerMinutes:
+                                          garland.settings!.timerMinutes,
+                                    );
+                                    await _updateGarlandSettings(
+                                      garland.ip,
+                                      updatedSettings,
                                     );
                                   }
                                   : null,
@@ -289,8 +260,16 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder:
-                                  (context) =>
-                                      GarlandSettingsScreen(device: garland),
+                                  (context) => GarlandSettingsScreen(
+                                    device: garland,
+                                    onSettingsChanged: (newSettings) async {
+                                      // Передаём новую функцию
+                                      await _updateGarlandSettings(
+                                        garland.ip,
+                                        newSettings,
+                                      );
+                                    },
+                                  ),
                             ),
                           );
                         },
@@ -311,7 +290,7 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
             else if (!_isSearching &&
                 _foundGarlands.isEmpty &&
                 !_isCorrectSubnet)
-              const SizedBox(), // Пустое пространство, если маска неправильная и гирлянд нет
+              const SizedBox(),
           ],
         ),
       ),

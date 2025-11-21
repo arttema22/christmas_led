@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:network_info_plus/network_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Добавьте импорт
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/garland_device.dart';
 import '../models/garland_settings.dart';
 
@@ -40,14 +40,15 @@ class UdpService {
                 data[2] == 1) {
               // Команда 1
 
-              final totalLeds = data[3] * 100 + data[4];
+              final totalLeds =
+                  data[3] * 100 + data[4]; // <- Исправлено согласно протоколу
               final power = data[5] == 1;
               final brightness = data[6];
               final autoChange = data[7] == 1;
               final randomChange = data[8] == 1;
               final period = data[9];
-              final timerActive = data[10] == 1;
-              final timerMinutes = data[11];
+              final timerActive = data[10] == 1; // <- Теперь 10-й байт
+              final timerMinutes = data[11]; // <- Теперь 11-й байт
 
               final settings = GarlandSettings(
                 totalLeds: totalLeds,
@@ -91,6 +92,189 @@ class UdpService {
       udpSocket.close();
     } catch (e) {
       debugPrint('Ошибка при отправке команды питания: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ КОЛИЧЕСТВА ЛЕДОВ И ПОВТОРНЫЙ ЗАПРОС НАСТРОЕК ===
+  Future<GarlandSettings?> sendLedCountCommand(String ip, int ledCount) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 0, am1, am2}
+      final am1 = ledCount ~/ 100;
+      final am2 = ledCount % 100;
+      final requestPacket = <int>[71, 84, 2, 0, am1, am2];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+
+      // === ПОВТОРНЫЙ ЗАПРОС НАСТРОЕК ===
+      final updatedSettings = await fetchSettings(ip);
+
+      udpSocket.close();
+      return updatedSettings;
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения количества ледов: $e');
+      return null;
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ ЯРКОСТИ ===
+  Future<void> sendBrightnessCommand(String ip, int brightness) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 2, val}
+      final val = brightness.clamp(1, 251);
+      final requestPacket = <int>[71, 84, 2, 2, val];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения яркости: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ СОСТОЯНИЯ ТАЙМЕРА ===
+  Future<void> sendTimerActiveCommand(String ip, bool timerActive) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 7} - отправить состояние таймера выключения
+      final requestPacket = <int>[71, 84, 2, 7];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения состояния таймера: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ ВРЕМЕНИ ТАЙМЕРА ===
+  Future<void> sendTimerMinutesCommand(String ip, int timerMinutes) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 8, val}
+      final val = timerMinutes.clamp(1, 240);
+      final requestPacket = <int>[71, 84, 2, 8, val];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения времени таймера: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ ФЛАГА АВТОСМЕНЫ ===
+  Future<void> sendAutoChangeCommand(String ip, bool autoChange) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 3, val}
+      final val = autoChange ? 1 : 0;
+      final requestPacket = <int>[71, 84, 2, 3, val];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения флага автосмены: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ ФЛАГА СЛУЧАЙНОЙ СМЕНЫ ===
+  Future<void> sendRandomChangeCommand(String ip, bool randomChange) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 4, val}
+      final val = randomChange ? 1 : 0;
+      final requestPacket = <int>[71, 84, 2, 4, val];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint(
+        'Ошибка при отправке команды изменения флага случайной смены: $e',
+      );
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ ИЗМЕНЕНИЯ ПЕРИОДА СМЕНЫ ===
+  Future<void> sendPeriodCommand(String ip, int period) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 5, val}
+      final val = period.clamp(1, 10); // Ограничиваем в диапазоне 1-10
+      final requestPacket = <int>[71, 84, 2, 5, val];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды изменения периода смены: $e');
+    }
+  }
+
+  // === ОТПРАВКА КОМАНДЫ "СЛЕДУЮЩИЙ ЭФФЕКТ" ===
+  Future<void> sendNextEffectCommand(String ip) async {
+    try {
+      final udpSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,
+      );
+
+      // Команда: {'G', 'T', 2, 6}
+      final requestPacket = <int>[71, 84, 2, 6];
+      final deviceAddress = InternetAddress(ip);
+      udpSocket.send(requestPacket, deviceAddress, 8888);
+
+      // Небольшая задержка, чтобы пакет успел отправиться
+      await Future.delayed(Duration(milliseconds: 100));
+      udpSocket.close();
+    } catch (e) {
+      debugPrint('Ошибка при отправке команды "следующий эффект": $e');
     }
   }
 
@@ -162,8 +346,6 @@ class UdpService {
     final prefs = await SharedPreferences.getInstance();
     final List<String> encodedGarlands =
         garlands.map((device) {
-          // Кодируем каждую гирлянду в строку: "ip|lastOctet|power"
-          // Если настройки отсутствуют, power будет false
           final power = device.settings?.power ?? false;
           return "${device.ip}|${device.lastOctet}|$power";
         }).toList();
@@ -184,35 +366,30 @@ class UdpService {
     for (String encoded in encodedGarlands) {
       final parts = encoded.split('|');
       if (parts.length == 3) {
-        // ip, lastOctet, power
         try {
           final ip = parts[0];
           final lastOctet = int.parse(parts[1]);
-          final power = parts[2] == 'true'; // Преобразуем строку обратно в bool
+          final power = parts[2] == 'true';
 
-          // Создаём гирлянду с минимальными настройками (питание)
           final settings = GarlandSettings(
-            totalLeds:
-                0, // Значение по умолчанию, будет обновлено при следующем запросе
+            totalLeds: 0,
             power: power,
-            brightness: 0, // Значение по умолчанию
-            autoChange: false, // Значение по умолчанию
-            randomChange: false, // Значение по умолчанию
-            period: 0, // Значение по умолчанию
-            timerActive: false, // Значение по умолчанию
-            timerMinutes: 0, // Значение по умолчанию
+            brightness: 128,
+            autoChange: false,
+            randomChange: false,
+            period: 1, // Значение по умолчанию в диапазоне 1-10
+            timerActive: false,
+            timerMinutes: 1,
           );
 
           final device = GarlandDevice(
             ip: ip,
             lastOctet: lastOctet,
-            settings:
-                settings, // Присваиваем сохранённые/предполагаемые настройки
+            settings: settings,
           );
           loadedGarlands.add(device);
         } catch (e) {
           debugPrint('Ошибка при разборе сохранённой гирлянды: $encoded, $e');
-          // Игнорируем некорректные записи
         }
       }
     }
