@@ -1,5 +1,7 @@
+// lib/screens/garland_settings_screen.dart
 import 'package:flutter/material.dart';
 import '../models/garland_device.dart';
+import '../models/garland_settings.dart';
 import '../services/udp_service.dart';
 
 class GarlandSettingsScreen extends StatefulWidget {
@@ -13,7 +15,7 @@ class GarlandSettingsScreen extends StatefulWidget {
 
 class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
   bool _isLoading = true;
-  var _settings;
+  GarlandSettings? _settings;
 
   @override
   void initState() {
@@ -47,39 +49,43 @@ class _GarlandSettingsScreenState extends State<GarlandSettingsScreen> {
         child:
             _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _settings != null
+                : _settings !=
+                    null // Проверяем, что _settings не null
                 ? Column(
+                  // Если не null, отображаем настройки
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Используем ?. для безопасного доступа к свойствам _settings
                     _buildSettingRow(
                       'Количество светодиодов:',
-                      '${_settings.totalLeds}',
-                    ),
+                      '${_settings!.totalLeds}',
+                    ), // ! говорит Dart, что мы уверены, что _settings не null в этом блоке
                     _buildSettingRow(
                       'Питание:',
-                      _settings.power ? 'Включено' : 'Выключено',
+                      _settings!.power ? 'Включено' : 'Выключено',
                     ),
-                    _buildSettingRow('Яркость:', '${_settings.brightness}'),
+                    _buildSettingRow('Яркость:', '${_settings!.brightness}'),
                     _buildSettingRow(
                       'Автосмена:',
-                      _settings.autoChange ? 'Да' : 'Нет',
+                      _settings!.autoChange ? 'Да' : 'Нет',
                     ),
                     _buildSettingRow(
                       'Случайная смена:',
-                      _settings.randomChange ? 'Да' : 'Нет',
+                      _settings!.randomChange ? 'Да' : 'Нет',
                     ),
-                    _buildSettingRow('Период (с):', '${_settings.period}'),
+                    _buildSettingRow('Период (с):', '${_settings!.period}'),
                     _buildSettingRow(
                       'Таймер активен:',
-                      _settings.timerActive ? 'Да' : 'Нет',
+                      _settings!.timerActive ? 'Да' : 'Нет',
                     ),
                     _buildSettingRow(
                       'Время таймера (мин):',
-                      '${_settings.timerMinutes}',
+                      '${_settings!.timerMinutes}',
                     ),
                   ],
                 )
                 : const Center(
+                  // Если null, показываем сообщение об ошибке
                   child: Text(
                     'Не удалось получить настройки',
                     style: TextStyle(color: Colors.red),

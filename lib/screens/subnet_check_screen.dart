@@ -1,5 +1,6 @@
 // lib/screens/subnet_check_screen.dart
 import 'dart:async';
+// import 'package:flutter/foundation.dart'; // Удалите эту строку
 import 'package:flutter/material.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import '../models/garland_device.dart';
@@ -30,32 +31,40 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
   void initState() {
     super.initState();
     _checkSubnetMask();
+    _loadSavedGarlands(); // Загружаем сохранённые гирлянды при запуске
+  }
+
+  Future<void> _loadSavedGarlands() async {
+    final savedGarlands = await _udpService.loadGarlands();
+    setState(() {
+      _foundGarlands = savedGarlands;
+    });
   }
 
   Future<void> _checkSubnetMask() async {
     setState(() {
       _isLoading = true;
-      _foundGarlands.clear();
+      // _foundGarlands.clear(); // Не очищаем при проверке подсети, чтобы сохранить загруженные
     });
 
-    String wifiIP = 'N/A'; // Временная переменная
+    String wifiIP = 'N/A';
     String wifiSubmask = 'N/A';
     bool hasCorrectSubnet = false;
 
     try {
-      // Асинхронные вызовы вне setState
       wifiSubmask = (await _networkInfo.getWifiSubmask()) ?? 'N/A';
       wifiIP = (await _networkInfo.getWifiIP()) ?? 'N/A';
 
       hasCorrectSubnet = wifiSubmask == "255.255.255.0";
     } catch (e) {
-      debugPrint('Ошибка при проверке маски подсети: $e');
+      debugPrint(
+        'Ошибка при проверке маски подсети: $e',
+      ); // debugPrint всё ещё доступен
       hasCorrectSubnet = false;
       wifiSubmask = 'Error';
       wifiIP = 'N/A';
     }
 
-    // Обновляем состояние с результатами асинхронных вызовов
     setState(() {
       _isCorrectSubnet = hasCorrectSubnet;
       _subnetMask = wifiSubmask;
@@ -67,24 +76,45 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
   Future<void> _startGarlandSearch() async {
     setState(() {
       _isSearching = true;
-      _foundGarlands.clear();
+      // _foundGarlands.clear(); // Не очищаем, а добавляем новые к существующим
     });
 
     try {
       final foundDevices = await _udpService.searchGarlands();
 
-      // === ЗАПРАШИВАЕМ НАСТРОЙКИ ДЛЯ КАЖДОЙ НАЙДЕННОЙ ГИРЛЯНДЫ ===
-      for (final device in foundDevices) {
-        final settings = await _udpService.fetchSettings(device.ip);
-        device.settings = settings;
+      // Для каждой найденной гирлянды проверяем, есть ли она уже в списке
+      for (final newDevice in foundDevices) {
+        bool alreadyExists = _foundGarlands.any(
+          (existingDevice) => existingDevice.ip == newDevice.ip,
+        );
+
+        if (!alreadyExists) {
+          // Если новая, запрашиваем настройки и добавляем в список
+          final settings = await _udpService.fetchSettings(newDevice.ip);
+          newDevice.settings = settings;
+          _foundGarlands.add(newDevice);
+        } else {
+          // Если уже есть, можно обновить настройки, если они пришли
+          final existingIndex = _foundGarlands.indexWhere(
+            (d) => d.ip == newDevice.ip,
+          );
+          if (existingIndex != -1) {
+            final settings = await _udpService.fetchSettings(newDevice.ip);
+            _foundGarlands[existingIndex].settings = settings;
+          }
+        }
       }
 
+      // Сохраняем обновлённый список
+      await _udpService.saveGarlands(_foundGarlands);
+
       setState(() {
-        _foundGarlands = foundDevices;
         _isSearching = false;
       });
     } catch (e) {
-      debugPrint('Ошибка при поиске гирлянд: $e');
+      debugPrint(
+        'Ошибка при поиске гирлянд: $e',
+      ); // debugPrint всё ещё доступен
       setState(() {
         _isSearching = false;
       });
@@ -191,7 +221,8 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                         trailing: Switch(
                           value: garland.settings?.power ?? false,
                           onChanged:
-                              garland.settings != null
+                              garland.settings !=
+                                      null // Проверка на null для безопасности
                                   ? (bool value) async {
                                     // 1. Оптимистично обновляем состояние в UI
                                     final updatedList =
@@ -246,6 +277,11 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                                       garland.ip,
                                       value,
                                     );
+
+                                    // 3. Сохраняем обновлённый список после переключения
+                                    await _udpService.saveGarlands(
+                                      _foundGarlands,
+                                    );
                                   }
                                   : null,
                         ),
@@ -271,7 +307,11 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                   'Garland not found',
                   style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
-              ),
+              )
+            else if (!_isSearching &&
+                _foundGarlands.isEmpty &&
+                !_isCorrectSubnet)
+              const SizedBox(), // Пустое пространство, если маска неправильная и гирлянд нет
           ],
         ),
       ),
