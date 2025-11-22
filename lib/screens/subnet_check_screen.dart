@@ -229,38 +229,29 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
                         trailing: Switch(
                           value: garland.settings?.power ?? false,
                           onChanged:
-                              garland.settings !=
-                                      null // Убедимся, что настройки не null перед переключением
+                              garland.settings != null
                                   ? (bool value) async {
                                     await _udpService.sendPowerCommand(
                                       garland.ip,
                                       value,
                                     );
-                                    // Проверим, что garland.settings не null перед использованием !
-                                    if (garland.settings != null) {
-                                      final updatedSettings = GarlandSettings(
-                                        totalLeds:
-                                            garland
-                                                .settings!
-                                                .totalLeds, // Строка 269 (предположительно)
-                                        power: value,
-                                        brightness:
-                                            garland.settings!.brightness,
-                                        autoChange:
-                                            garland.settings!.autoChange,
-                                        randomChange:
-                                            garland.settings!.randomChange,
-                                        period: garland.settings!.period,
-                                        timerActive:
-                                            garland.settings!.timerActive,
-                                        timerMinutes:
-                                            garland.settings!.timerMinutes,
-                                      );
-                                      await _updateGarlandSettings(
-                                        garland.ip,
-                                        updatedSettings,
-                                      );
-                                    }
+                                    final updatedSettings = GarlandSettings(
+                                      totalLeds: garland.settings!.totalLeds,
+                                      power: value,
+                                      brightness: garland.settings!.brightness,
+                                      autoChange: garland.settings!.autoChange,
+                                      randomChange:
+                                          garland.settings!.randomChange,
+                                      period: garland.settings!.period,
+                                      timerActive:
+                                          garland.settings!.timerActive,
+                                      timerMinutes:
+                                          garland.settings!.timerMinutes,
+                                    );
+                                    await _updateGarlandSettings(
+                                      garland.ip,
+                                      updatedSettings,
+                                    );
                                   }
                                   : null,
                         ),
@@ -297,7 +288,7 @@ class _SubnetCheckScreenState extends State<SubnetCheckScreen> {
             else if (!_isSearching &&
                 _foundGarlands.isEmpty &&
                 !_isCorrectSubnet)
-              const SizedBox(),
+              const SizedBox(), // Пустое пространство, если маска неправильная и гирлянд нет
           ],
         ),
       ),

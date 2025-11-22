@@ -21,28 +21,26 @@ class GarlandTabsScreen extends StatefulWidget {
 }
 
 class _GarlandTabsScreenState extends State<GarlandTabsScreen> {
-  int _currentIndex = 1; // Приватное состояние, пусть будет с _
+  int _currentIndex = 0; // Индекс вкладки "Настройки" по умолчанию
 
   @override
   Widget build(BuildContext context) {
     // Список вкладок
     final List<Widget> pages = [
-      // Переименовано: _pages -> pages
-      GarlandEffectsScreen(), // Индекс 0
+      GarlandEffectsScreen(device: widget.device), // Индекс 0 - Требует device
       GarlandSettingsScreen(
+        // Индекс 1 - Требует device и onSettingsChanged
         device: widget.device,
         onSettingsChanged: widget.onSettingsChanged,
-      ), // Индекс 1
-      GarlandCalibrationScreen(), // Индекс 2
+      ),
+      GarlandCalibrationScreen(
+        // Индекс 2 - Требует device
+        device: widget.device,
+      ),
     ];
 
     // Заголовки вкладок
-    final List<String> titles = [
-      // Переименовано: _titles -> titles
-      'Эффекты',
-      'Настройки',
-      'Калибровка',
-    ];
+    final List<String> titles = ['Эффекты', 'Настройки', 'Калибровка'];
 
     return Scaffold(
       appBar: AppBar(title: Text('Гирлянда ${widget.device.ip}')),
@@ -57,15 +55,15 @@ class _GarlandTabsScreenState extends State<GarlandTabsScreen> {
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.palette), // Иконка для "Эффектов"
-            label: titles[0], // Используем переменную titles
+            label: titles[0],
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings), // Иконка для "Настроек"
-            label: titles[1], // Используем переменную titles
+            label: titles[1],
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.linear_scale), // Иконка для "Калибровки"
-            label: titles[2], // Используем переменную titles
+            icon: Icon(Icons.camera), // Иконка для "Калибровки"
+            label: titles[2],
           ),
         ],
       ),
